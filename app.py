@@ -5,6 +5,7 @@ import tensorflow as tf
 import joblib
 import os
 
+from keras.layers import TFSMLayer
 from utils.preprocessing import load_dataset, get_recent_sequence, inverse_scale_prediction
 from utils.classification_preprocessing import load_classification_data, prepare_classification_input
 
@@ -49,7 +50,7 @@ def load_clf_data():
 
 @st.cache_resource
 def load_dl_model(name):
-    return tf.keras.models.load_model(DL_MODEL_PATHS[name])
+    return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serving_default")
 
 @st.cache_resource
 def load_clf_model(name):
@@ -93,7 +94,7 @@ if st.button("Predict"):
             X_input, scaler = get_recent_sequence(df_region, region, date)
 
             model = load_dl_model(model_name)
-            prediction = model.predict(X_input)
+            prediction = model(X_input)
             rainfall_mm = inverse_scale_prediction(prediction, scaler)
 
             # Basic classification of mm
@@ -109,7 +110,7 @@ if st.button("Predict"):
 
         else:
             input_row = prepare_classification_input(df, region, date, CLASSIFICATION_FEATURES)
-            clf_model = load_clf_model(model_name)
+            clf_model = load_clf_model()
             predicted_class = clf_model.predict(input_row)[0]
             label = CATEGORY_LABELS.get(predicted_class, "Unknown")
 
