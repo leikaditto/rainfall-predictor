@@ -31,7 +31,7 @@ CATEGORY_LABELS = {
 
 CLASSIFICATION_FEATURES = [
     'r1h', 'r3h', 'rfq', 'r1q', 'r3q',
-    'rfh_lag_1', 'r1h_lag_2', 'is_wet_season'
+    'rfh_lag_1', 'r1h_lag_2', 'r3h_lag_3'
 ]
 
 # --------------------------
@@ -93,6 +93,11 @@ if st.button("Predict"):
 
             model = load_dl_model(model_name)
             prediction = model(X_input)
+
+            # If prediction is a dict, extract the array
+            if isinstance(prediction, dict):
+                prediction = list(prediction.values())[0]
+                
             rainfall_mm = inverse_scale_prediction(prediction, scaler)
 
             # Basic classification of mm
