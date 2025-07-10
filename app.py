@@ -11,17 +11,14 @@ from utils.classification_preprocessing import load_classification_data, prepare
 # --------------------------
 # CONFIG & CONSTANTS
 # --------------------------
+# Paths
 DL_MODEL_PATHS = {
-    "LSTM": "models/model_lstm.h5",
-    "GRU": "models/model_gru.h5",
-    "CNN-LSTM": "models/model_cnnlstm.h5"
+    "LSTM": "models/converted/model_lstm",
+    "GRU": "models/converted/model_gru",
+    "CNN-LSTM": "models/converted/model_cnnlstm"
 }
 
-CLF_MODEL_PATHS = {
-    "Logistic Regression": "models/model_LogReg.pkl",
-    "Random Forest": "models/model_RanFor.pkl",
-    "CNN Classifier": "models/model_CNNlstm.pkl"
-}
+CLF_MODEL_PATHS = "models/model_RanFor.pkl"
 
 CATEGORY_LABELS = {
     0: "No Rain",
@@ -66,7 +63,7 @@ st.set_page_config(page_title="PH Rainfall Prediction", layout="centered")
 st.title("🌧️ PH Rainfall Prediction App")
 
 st.markdown("""
-Predict rainfall intensity based on Philippine region and date using either deep learning or classification models.
+Predict rainfall intensity based on Philippine region and date using either deep learning or classification model.
 """)
 
 # Mode selection
@@ -86,7 +83,7 @@ date = st.date_input("Select Date for Prediction", pd.to_datetime("2023-07-01"))
 if mode == "Regression":
     model_name = st.selectbox("Select Deep Learning Model", list(DL_MODEL_PATHS.keys()))
 else:
-    model_name = st.selectbox("Select Classification Model", list(CLF_MODEL_PATHS.keys()))
+    model_name = "Random Forest" # Static label
 
 # Predict Button
 if st.button("Predict"):
@@ -112,7 +109,7 @@ if st.button("Predict"):
 
         else:
             input_row = prepare_classification_input(df, region, date, CLASSIFICATION_FEATURES)
-            clf_model = load_clf_model(model_name)
+            clf_model = load_clf_model()
             predicted_class = clf_model.predict(input_row)[0]
             label = CATEGORY_LABELS.get(predicted_class, "Unknown")
 
