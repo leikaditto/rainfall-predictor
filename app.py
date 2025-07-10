@@ -109,7 +109,7 @@ if st.button("Predict"):
 
         else:
             input_row = prepare_classification_input(df, region, date, CLASSIFICATION_FEATURES)
-            clf_model = load_clf_model()
+            clf_model = load_clf_model(model_name)
             predicted_class = clf_model.predict(input_row)[0]
             label = CATEGORY_LABELS.get(predicted_class, "Unknown")
 
