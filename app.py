@@ -53,8 +53,8 @@ def load_dl_model(name):
     return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serving_default")
 
 @st.cache_resource
-def load_clf_model(name):
-    return joblib.load(CLF_MODEL_PATHS[name])
+def load_clf_model():
+    return joblib.load(CLF_MODEL_PATHS)
 
 # --------------------------
 # STREAMLIT UI
@@ -91,7 +91,7 @@ if st.button("Predict"):
     try:
         if mode == "Regression":
             df_region = df[df["Region"] == region]
-            X_input, scaler = get_recent_sequence(df_region, region, date)
+            X_input, scaler = get_recent_sequence(df_region, region, date, window=10)
 
             model = load_dl_model(model_name)
             prediction = model(X_input)

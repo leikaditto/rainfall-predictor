@@ -15,42 +15,28 @@ def load_dataset(file_path):
     df['date'] = pd.to_datetime(df['date'])
     return df
 
-def get_recent_sequence(df, region, target_date, window=12):
-    """
-    Prepares the input sequence for prediction.
+def get_recent_sequence(df, region, target_date, window=10):
+    df['date'] = pd.to_datetime(df['date'])
+    df = df[df['Region'] == region].sort_values('date')
 
-    Args:
-        df: full dataframe
-        region: region name (string)
-        target_date: prediction target date (string: 'YYYY-MM-DD')
-        window: number of past time steps to use
-    
-    Returns:
-        X_input: model-ready array
-        scaler: fitted MinMaxScaler
-    """
-    # Filter for the region
-    df_region = df[df['Region'] == region].sort_values('date')
-
-    # Covert to datetime
     target_date = pd.to_datetime(target_date)
+    df = df[df['date'] < target_date]
+    seq = df.tail(window)
 
-    # Filter data before target date
-    df_past = df_region[df_region['date'] < target_date].tail(window)
+    if len(seq) < window:
+        raise ValueError("Not enough past data available to create a sequence.")
 
-    if len(df_past) < window:
-        raise ValueError(f"Not enough part data for region '{region}' before {target_date.strftime('%Y-%m-%d')}")
+    # Select the 8 features your DL model was trained on
+    features = [
+        'r1h', 'r3h', 'rfq', 'r1q', 'r3q',
+        'is_wet_season', 'rfh_roll_mean_3', 'r1h_roll_std_5'
+    ]
     
-    # Extract rainfall column
-    values = df_past['rfh'].values.reshape(-1, 1)
-
-    # Normalize
+    rainfall_seq = seq[features]
     scaler = MinMaxScaler()
-    scaled_values = scaler.fit_transform(values)
+    scaled = scaler.fit_transform(rainfall_seq)
 
-    # Reshape for LSTM/CNN/GRU input: [1, time steps, features]
-    X_input = scaled_values.reshape((1, window, 1))
-
+    X_input = scaled.reshape(1, window, len(features))
     return X_input, scaler
 
 def inverse_scale_prediction(pred, scaler):
