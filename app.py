@@ -30,8 +30,8 @@ CATEGORY_LABELS = {
 }
 
 CLASSIFICATION_FEATURES = [
-    'r1h', 'r3h', 'rfq', 'r1q', 'r3q',
-    'rfh_lag_1', 'r1h_lag_2', 'r3h_lag_3'
+    'r1h', 'r3h', 'rfh_lag_1', 'r1h_lag_2', 'r3h_lag_3',
+    'rfh_roll_mean_3', 'r1h_roll_std_5', 'is_wet_season'
 ]
 
 # --------------------------
@@ -92,13 +92,10 @@ if st.button("Predict"):
             X_input, scaler = get_recent_sequence(df_region, region, date, window=10)
 
             model = load_dl_model(model_name)
-            prediction = model(X_input)
-
-            # If prediction is a dict, extract the array
-            if isinstance(prediction, dict):
-                prediction = list(prediction.values())[0]
+            prediction = model.predict(X_input)
+            rainfall_value = list(prediction.values())[0][0]
                 
-            rainfall_mm = inverse_scale_prediction(prediction, scaler)
+            rainfall_mm = inverse_scale_prediction(np.array([[rainfall_value]]), scaler)
 
             # Basic classification of mm
             if rainfall_mm < 50:
