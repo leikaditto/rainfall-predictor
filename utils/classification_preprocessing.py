@@ -15,7 +15,7 @@ def prepare_classification_input(df, region, date, feature_columns):
     df_region = df[df["Region"] == region]
     
     # Filter rows before target date
-    df_region = df_region[df_region["date"] == pd.to_datetime(date)]
+    df_region = df_region[df_region["date"] < date].sort_values("date")
     
     if df_region.empty:
         raise ValueError("No data available before selected date.")
