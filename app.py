@@ -31,9 +31,7 @@ CATEGORY_LABELS = {
 
 CLASSIFICATION_FEATURES = [
     'r1h', 'r3h', 'rfq', 'r1q', 'r3q',
-    'rfh_lag_1', 'r1h_lag_2', 'r3h_lag_3',
-    'rfh_roll_mean_3', 'r1h_roll_std_5',
-    'is_wet_season', 'rfq_r3q'
+    'rfh_lag_1', 'r1h_lag_2', 'is_wet_season'
 ]
 
 # --------------------------
