@@ -81,28 +81,33 @@ if st.button("Predict"):
         df_region = df[df["Region"] == region]
         X_input, scaler = get_recent_sequence(df_region, region, date)
 
+        print("🟦 X_input shape:", X_input.shape)
+        st.text(f"Input shape to model: {X_input.shape}")
+
         # 2. Predict with selected model
         model = load_dl_model(model_name)
         prediction_dict = model(X_input)
-        # Extract the value
+        # Step 2: Print model output shape and content
         if isinstance(prediction_dict, dict):
-            rainfall_value = list(prediction_dict.values())[0][0]
+            output_array = list(prediction_dict.values())[0]
         else:
-            rainfall_value = prediction_dict[0][0]
+            output_array = prediction_dict
 
-        rainfall_mm = inverse_scale_prediction(np.array([[rainfall_value]]), scaler)
+        print("🟩 Model raw output:", output_array)
+        print("🟩 Model output shape:", output_array.shape)
+        st.text(f"Model output shape: {output_array.shape}")
 
-        # 3. Quantile-based classification
-        quantile_bins = get_rainfall_quantile_bins(df)
-        rain_category = categorize_rain(rainfall_mm, quantile_bins)
-        rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
+        # # 3. Quantile-based classification
+        # quantile_bins = get_rainfall_quantile_bins(df)
+        # rain_category = categorize_rain(rainfall_mm, quantile_bins)
+        # rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
 
-        # 4. Output
-        st.success(f"📏 Predicted Rainfall: **{rainfall_mm:.2f} mm**")
-        st.info(f"🧠 Forecasted Rainfall Category (Quantile-based): **{rain_label} ({rain_category})**")
+        # # 4. Output
+        # st.success(f"📏 Predicted Rainfall: **{rainfall_mm:.2f} mm**")
+        # st.info(f"🧠 Forecasted Rainfall Category (Quantile-based): **{rain_label} ({rain_category})**")
 
-        # Optional: show bin values
-        st.caption(f"Quantile Thresholds (based on r1h): {quantile_bins}")
+        # # Optional: show bin values
+        # st.caption(f"Quantile Thresholds (based on r1h): {quantile_bins}")
 
     except Exception as e:
         st.error(f"⚠️ Prediction Error: {e}")
