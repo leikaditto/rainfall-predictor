@@ -55,7 +55,7 @@ def categorize_rain(rain, bins):
 
 @st.cache_resource
 def load_dl_model(name):
-    return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serve")
+    return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serving_default")
 
 # -----------------------------------
 # Streamlit UI
@@ -83,7 +83,7 @@ if st.button("Predict"):
 
         # 2. Predict with selected model
         model = load_dl_model(model_name)
-        prediction_dict = model(X_input, training=False)
+        prediction_dict = model(X_input)
         # Extract the value
         if isinstance(prediction_dict, dict):
             rainfall_value = list(prediction_dict.values())[0][0]
