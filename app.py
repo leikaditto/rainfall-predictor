@@ -79,62 +79,100 @@ region = st.selectbox("Select Region", regions)
 date = st.date_input("Select Prediction Date", pd.to_datetime("2025-12-01"))
 model_name = st.selectbox("Select Forecasting Model", list(DL_MODEL_PATHS.keys()))
 
-# Predict Button
-if st.button("Predict"):
-    try:
-        # 1. Prepare model input
-        df_region = df[df["Region"] == region]
-        X_input, scaler = get_recent_sequence(df_region, region, date)
 
-        st.text(f"Scaler expects: {scaler.n_features_in_} features")
-        st.text(f"Model input shape: {X_input.shape}")
+tab1, tab2, = st.tabs(["🔮 Forecast", "📊 Dashboard"])
 
-        # 2. Predict
-        model = load_dl_model(model_name)
-        result = model(X_input)
+with tab1:
+    # Predict Button
+    if st.button("Predict"):
+        try:
+            # 1. Prepare model input
+            df_region = df[df["Region"] == region]
+            X_input, scaler = get_recent_sequence(df_region, region, date)
 
-        # 3. Extract predicted value
-        if isinstance(result, dict):
-            output_array = list(result.values())[0]
-        else:
-            output_array = result
+            st.text(f"Scaler expects: {scaler.n_features_in_} features")
+            st.text(f"Model input shape: {X_input.shape}")
 
-        predicted_value = output_array[0][0]  # shape (1, 1)
+            # 2. Predict
+            model = load_dl_model(model_name)
+            result = model(X_input)
 
-        # 4. Inverse transform using dummy 8-feature row
-        rainfall_mm = inverse_transform_rainfall(predicted_value, scaler)
+            # 3. Extract predicted value
+            if isinstance(result, dict):
+                output_array = list(result.values())[0]
+            else:
+                output_array = result
 
-        # 5. Classify
-        quantile_bins = get_rainfall_quantile_bins(df)
-        rain_category = categorize_rain(rainfall_mm, quantile_bins)
-        rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
+            predicted_value = output_array[0][0]  # shape (1, 1)
 
-        # 6. Output — User-Friendly Messaging
-        emoji_map = {
-            0: "☀️",
-            1: "🌤️",
-            2: "🌧️",
-            3: "🌧️🌧️",
-            4: "⛈️⚠️"
-        }
+            # 4. Inverse transform using dummy 8-feature row
+            rainfall_mm = inverse_transform_rainfall(predicted_value, scaler)
 
-        guidance = {
-            0: "No rainfall expected. It may be a good time for irrigation or dry-season crop activities.",
-            1: "Light rainfall. Minor field impact — low risk for flooding or crop damage.",
-            2: "Moderate rainfall. Normal wet-season conditions. Proceed with standard precautions.",
-            3: "Heavy rainfall expected. Watch for flooding in low-lying areas. Consider drainage checks.",
-            4: "Extreme rainfall! High risk of flooding. Secure equipment, monitor local alerts, delay planting if needed."
-        }
+            # 5. Classify
+            quantile_bins = get_rainfall_quantile_bins(df)
+            rain_category = categorize_rain(rainfall_mm, quantile_bins)
+            rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
 
-        # Get icon and guidance
-        icon = emoji_map.get(rain_category, "")
-        note = guidance.get(rain_category, "No guidance available.")
+            # 6. Output — User-Friendly Messaging
+            emoji_map = {
+                0: "☀️",
+                1: "🌤️",
+                2: "🌧️",
+                3: "🌧️🌧️",
+                4: "⛈️⚠️"
+            }
 
-        # Show output
-        st.markdown(f"### {icon} Predicted Rainfall: **{rainfall_mm:.2f} mm**")
-        st.markdown(f"**Category:** {rain_label} ({rain_category}) — Based on historical patterns")
-        st.markdown(f"#### 📌 Guidance:\n{note}")
-        st.caption(f"Quantile Thresholds (from training data): {quantile_bins}")
+            guidance = {
+                0: "No rainfall expected. It may be a good time for irrigation or dry-season crop activities.",
+                1: "Light rainfall. Minor field impact — low risk for flooding or crop damage.",
+                2: "Moderate rainfall. Normal wet-season conditions. Proceed with standard precautions.",
+                3: "Heavy rainfall expected. Watch for flooding in low-lying areas. Consider drainage checks.",
+                4: "Extreme rainfall! High risk of flooding. Secure equipment, monitor local alerts, delay planting if needed."
+            }
 
-    except Exception as e:
-        st.error(f"⚠️ Prediction Error: {e}")
+            # Get icon and guidance
+            icon = emoji_map.get(rain_category, "")
+            note = guidance.get(rain_category, "No guidance available.")
+
+            # Show output
+            st.markdown(f"### {icon} Predicted Rainfall: **{rainfall_mm:.2f} mm**")
+            st.markdown(f"**Category:** {rain_label} ({rain_category}) — Based on historical patterns")
+            st.markdown(f"#### 📌 Guidance:\n{note}")
+            st.caption(f"Quantile Thresholds (from training data): {quantile_bins}")
+
+        except Exception as e:
+            st.error(f"⚠️ Prediction Error: {e}")
+
+with tab2:
+    st.header("📊 Rainfall Dashboard")
+
+    # Dummy METRICS section
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Predicted Rainfall", f"{rainfall_mm:.2f} mm", delta=None)
+    col2.metric("Category", rain_label, delta=None)
+    col3.metric("Risk Level", guidance.get(rain_category, "Unknown").split('.')[0])
+
+    st.divider()
+
+    # LINE CHART (Recent Rainfall Trend)
+    df_region_all = df[df["Region"] == region].sort_values("date").tail(100)
+    st.subheader("📈 Recent Rainfall (r1h)")
+    st.line_chart(data=df_region_all, x="date", y="r1h", use_container_width=True)
+
+    st.divider()
+
+    # DONUT CHART (Category Frequency)
+    bins = get_rainfall_quantile_bins(df_region_all)
+    df_region_all["rain_cat"] = df_region_all["r1h"].apply(lambda x: categorize_rain(x, bins))
+    counts = df_region_all["rain_cat"].value_counts().sort_index()
+    labels = [CATEGORY_LABELS[i] for i in counts.index]
+    donut_data = pd.DataFrame({"Category": labels, "Frequency": counts.values})
+
+    st.subheader("🍩 Rainfall Category Distribution")
+    st.bar_chart(donut_data.set_index("Category"))
+
+    st.divider()
+
+    # Placeholder for future heatmap
+    st.subheader("🟦 Heatmap (Coming Soon)")
+    st.info("A visual heatmap of rainfall by week and day will appear here in the next version.")
