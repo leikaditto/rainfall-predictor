@@ -57,6 +57,11 @@ def categorize_rain(rain, bins):
 def load_dl_model(name):
     return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serving_default")
 
+def inverse_transform_rainfall(value, scaler, target_index=0):
+    dummy = np.zeros((1, scaler.n_features_in_))
+    dummy[0][target_index] = value
+    return scaler.inverse_transform(dummy)[0][target_index]
+
 # -----------------------------------
 # Streamlit UI
 # -----------------------------------
@@ -81,41 +86,33 @@ if st.button("Predict"):
         df_region = df[df["Region"] == region]
         X_input, scaler = get_recent_sequence(df_region, region, date)
 
-        print("Scaler.n_features_in_:", scaler.n_features_in_)
-        st.text(f"Scaler == {scaler.n_features_in_}")
+        st.text(f"Scaler expects: {scaler.n_features_in_} features")
+        st.text(f"Model input shape: {X_input.shape}")
 
-        print("🟦 X_input shape:", X_input.shape)
-        st.text(f"Input shape to model: {X_input.shape}")
-
-        # 2. Predict with selected model
+        # 2. Predict
         model = load_dl_model(model_name)
-        prediction_dict = model(X_input)
+        result = model(X_input)
 
-        # Print model output shape and content
-        if isinstance(prediction_dict, dict):
-            output_array = list(prediction_dict.values())[0]
+        # 3. Extract predicted value
+        if isinstance(result, dict):
+            output_array = list(result.values())[0]
         else:
-            output_array = prediction_dict
+            output_array = result
 
-        print("🟩 Model raw output:", output_array)
-        st.text(f"Model raw output: {output_array}")
-        
-        print("🟩 Model output shape:", output_array.shape)
-        st.text(f"Model output shape: {output_array.shape}")
+        predicted_value = output_array[0][0]  # shape (1, 1)
 
+        # 4. Inverse transform using dummy 8-feature row
+        rainfall_mm = inverse_transform_rainfall(predicted_value, scaler)
 
-        # rainfall_mm = inverse_scale_prediction(np.array([[rainfall_value]]), scaler)
-        # # 3. Quantile-based classification
-        # quantile_bins = get_rainfall_quantile_bins(df)
-        # rain_category = categorize_rain(rainfall_mm, quantile_bins)
-        # rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
+        # 5. Classify
+        quantile_bins = get_rainfall_quantile_bins(df)
+        rain_category = categorize_rain(rainfall_mm, quantile_bins)
+        rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
 
-        # # 4. Output
-        # st.success(f"📏 Predicted Rainfall: **{rainfall_mm:.2f} mm**")
-        # st.info(f"🧠 Forecasted Rainfall Category (Quantile-based): **{rain_label} ({rain_category})**")
-
-        # # Optional: show bin values
-        # st.caption(f"Quantile Thresholds (based on r1h): {quantile_bins}")
+        # 6. Output
+        st.success(f"📏 Predicted Rainfall: **{rainfall_mm:.2f} mm**")
+        st.info(f"🧠 Forecasted Rainfall Category (Quantile-based): **{rain_label} ({rain_category})**")
+        st.caption(f"Quantile Thresholds: {quantile_bins}")
 
     except Exception as e:
         st.error(f"⚠️ Prediction Error: {e}")
