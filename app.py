@@ -84,7 +84,12 @@ if st.button("Predict"):
         # 2. Predict with selected model
         model = load_dl_model(model_name)
         prediction_dict = model(X_input, training=False)
-        rainfall_value = list(prediction_dict.values())[0][0]
+        # Extract the value
+        if isinstance(prediction_dict, dict):
+            rainfall_value = list(prediction_dict.values())[0][0]
+        else:
+            rainfall_value = prediction_dict[0][0]
+
         rainfall_mm = inverse_scale_prediction(np.array([[rainfall_value]]), scaler)
 
         # 3. Quantile-based classification
