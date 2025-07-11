@@ -83,7 +83,7 @@ if st.button("Predict"):
 
         # 2. Predict with selected model
         model = load_dl_model(model_name)
-        prediction_dict = model.predict(X_input)
+        prediction_dict = model(X_input, training=False)
         rainfall_value = list(prediction_dict.values())[0][0]
         rainfall_mm = inverse_scale_prediction(np.array([[rainfall_value]]), scaler)
 
