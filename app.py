@@ -80,9 +80,12 @@ if st.button("Predict"):
         # 1. Prepare model input
         df_region = df[df["Region"] == region]
         X_input, scaler = get_recent_sequence(df_region, region, date)
+
         print("Scaler.n_features_in_:", scaler.n_features_in_)
-        # print("🟦 X_input shape:", X_input.shape)
-        # st.text(f"Input shape to model: {X_input.shape}")
+        st.text(f"Scaler == {scaler.n_features_in_}")
+
+        print("🟦 X_input shape:", X_input.shape)
+        st.text(f"Input shape to model: {X_input.shape}")
 
         # 2. Predict with selected model
         model = load_dl_model(model_name)
@@ -95,6 +98,8 @@ if st.button("Predict"):
             output_array = prediction_dict
 
         print("🟩 Model raw output:", output_array)
+        st.text(f"Model raw output: {output_array}")
+        
         print("🟩 Model output shape:", output_array.shape)
         st.text(f"Model output shape: {output_array.shape}")
 
