@@ -55,7 +55,7 @@ def categorize_rain(rain, bins):
 
 @st.cache_resource
 def load_dl_model(name):
-    return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="predict")
+    return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serving_default")
 
 # -----------------------------------
 # Streamlit UI
