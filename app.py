@@ -55,7 +55,7 @@ def categorize_rain(rain, bins):
 
 @st.cache_resource
 def load_dl_model(name):
-    return tf.keras.models.load_model(DL_MODEL_PATHS[name])
+    return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serve")
 
 # -----------------------------------
 # Streamlit UI
@@ -64,7 +64,7 @@ st.set_page_config(page_title="PH Rainfall Forecast", layout="centered")
 st.title("🌧️ PH Rainfall Forecast & Category Dashboard")
 
 st.markdown("""
-Predict future rainfall and automatically classify it into risk categories using deep learning and data-driven thresholds.
+Predict future rainfall and automatically classify it into risk categories using deep learning.
 """)
 
 # Input: Region, Date, Model
