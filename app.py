@@ -99,19 +99,19 @@ st.markdown(f"**🗺️ Region:** {region}  |  **📅 Date:** {date.strftime('%Y
 tab1, tab2, = st.tabs(["🔮 Forecast", "📊 Dashboard"])
 
 with tab1:
+    # 1. Prepare model input
+    df_region = df[df["Region"] == region]
+    X_input, scaler = get_recent_sequence(df_region, region, date)
+    model = load_dl_model(model_name)
+
     if forecast_mode == "1-Day Forecast":
         # Predict Button
         if st.button("Predict"):
             try:
-                # 1. Prepare model input
-                df_region = df[df["Region"] == region]
-                X_input, scaler = get_recent_sequence(df_region, region, date)
-
                 st.text(f"Scaler expects: {scaler.n_features_in_} features")
                 st.text(f"Model input shape: {X_input.shape}")
 
                 # 2. Predict
-                model = load_dl_model(model_name)
                 result = model(X_input)
 
                 # 3. Extract predicted value
@@ -150,7 +150,7 @@ with tab1:
                 st.error(f"⚠️ Prediction Error: {e}")
 
     elif forecast_mode == "30-Day Forecast":
-        predictions = recursive_forecast()
+        predictions = recursive_forecast(model, X_input, scaler, steps=30)
 
         # Create date index starting from selected date
         future_dates = pd.date_range(start=date, periods=30, freq="D")
