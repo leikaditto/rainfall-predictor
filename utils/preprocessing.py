@@ -4,7 +4,6 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import os
 
-from app import inverse_transform_rainfall
 
 def load_dataset(file_path):
     """
@@ -47,6 +46,11 @@ def inverse_scale_prediction(pred, scaler):
     """
     pred = np.array(pred).reshape(-1, 1)
     return scaler.inverse_transform(pred)[0][0]
+
+def inverse_transform_rainfall(value, scaler, target_index=0):
+    dummy = np.zeros((1, scaler.n_features_in_))
+    dummy[0][target_index] = value
+    return scaler.inverse_transform(dummy)[0][target_index]
 
 def recursive_forecast(model, initial_sequence, scaler, steps=30):
     """

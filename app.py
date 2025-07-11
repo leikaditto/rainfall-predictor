@@ -6,8 +6,7 @@ import joblib
 import os
 
 from keras.layers import TFSMLayer
-from utils.preprocessing import load_dataset, get_recent_sequence, inverse_scale_prediction
-from utils.preprocessing import recursive_forecast
+from utils.preprocessing import load_dataset, get_recent_sequence, inverse_transform_rainfall, recursive_forecast
 
 # -----------------------------------
 # Model paths (SavedModel folders)
@@ -73,11 +72,6 @@ def categorize_rain(rain, bins):
 @st.cache_resource
 def load_dl_model(name):
     return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serving_default")
-
-def inverse_transform_rainfall(value, scaler, target_index=0):
-    dummy = np.zeros((1, scaler.n_features_in_))
-    dummy[0][target_index] = value
-    return scaler.inverse_transform(dummy)[0][target_index]
 
 # -----------------------------------
 # Streamlit UI
