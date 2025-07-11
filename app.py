@@ -7,6 +7,7 @@ import os
 
 from keras.layers import TFSMLayer
 from utils.preprocessing import load_dataset, get_recent_sequence, inverse_scale_prediction
+from utils.preprocessing import recursive_forecast
 
 # -----------------------------------
 # Model paths (SavedModel folders)
@@ -104,54 +105,73 @@ st.markdown(f"**🗺️ Region:** {region}  |  **📅 Date:** {date.strftime('%Y
 tab1, tab2, = st.tabs(["🔮 Forecast", "📊 Dashboard"])
 
 with tab1:
-    # Predict Button
-    if st.button("Predict"):
-        try:
-            # 1. Prepare model input
-            df_region = df[df["Region"] == region]
-            X_input, scaler = get_recent_sequence(df_region, region, date)
+    if forecast_mode == "1-Day Forecast":
+        # Predict Button
+        if st.button("Predict"):
+            try:
+                # 1. Prepare model input
+                df_region = df[df["Region"] == region]
+                X_input, scaler = get_recent_sequence(df_region, region, date)
 
-            st.text(f"Scaler expects: {scaler.n_features_in_} features")
-            st.text(f"Model input shape: {X_input.shape}")
+                st.text(f"Scaler expects: {scaler.n_features_in_} features")
+                st.text(f"Model input shape: {X_input.shape}")
 
-            # 2. Predict
-            model = load_dl_model(model_name)
-            result = model(X_input)
+                # 2. Predict
+                model = load_dl_model(model_name)
+                result = model(X_input)
 
-            # 3. Extract predicted value
-            if isinstance(result, dict):
-                output_array = list(result.values())[0]
-            else:
-                output_array = result
+                # 3. Extract predicted value
+                if isinstance(result, dict):
+                    output_array = list(result.values())[0]
+                else:
+                    output_array = result
 
-            predicted_value = output_array[0][0]  # shape (1, 1)
+                predicted_value = output_array[0][0]  # shape (1, 1)
 
-            # 4. Inverse transform using dummy 8-feature row
-            rainfall_mm = inverse_transform_rainfall(predicted_value, scaler)
+                # 4. Inverse transform using dummy 8-feature row
+                rainfall_mm = inverse_transform_rainfall(predicted_value, scaler)
 
-            # 5. Classify
-            quantile_bins = get_rainfall_quantile_bins(df)
-            rain_category = categorize_rain(rainfall_mm, quantile_bins)
-            rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
+                # 5. Classify
+                quantile_bins = get_rainfall_quantile_bins(df)
+                rain_category = categorize_rain(rainfall_mm, quantile_bins)
+                rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
 
-            # Get icon and guidance
-            icon = emoji_map.get(rain_category, "")
-            note = guidance.get(rain_category, "No guidance available.")
+                # Get icon and guidance
+                icon = emoji_map.get(rain_category, "")
+                note = guidance.get(rain_category, "No guidance available.")
 
-            # Store results in session state
-            st.session_state["rainfall_mm"] = rainfall_mm
-            st.session_state["rain_category"] = rain_category
-            st.session_state["rain_label"] = rain_label
-            st.session_state["note"] = note
+                # Store results in session state
+                st.session_state["rainfall_mm"] = rainfall_mm
+                st.session_state["rain_category"] = rain_category
+                st.session_state["rain_label"] = rain_label
+                st.session_state["note"] = note
 
-            # Show output
-            st.markdown(f"### {icon} Predicted Rainfall: **{rainfall_mm:.2f} mm**")
-            st.markdown(f"**Category:** {rain_label} ({rain_category}) — Based on historical patterns")
-            st.markdown(f"#### 📌 Guidance:\n{note}")
-            st.caption(f"Quantile Thresholds (from training data): {quantile_bins}")
+                # Show output
+                st.markdown(f"### {icon} Predicted Rainfall: **{rainfall_mm:.2f} mm**")
+                st.markdown(f"**Category:** {rain_label} ({rain_category}) — Based on historical patterns")
+                st.markdown(f"#### 📌 Guidance:\n{note}")
+                st.caption(f"Quantile Thresholds (from training data): {quantile_bins}")
 
-        except Exception as e:
-            st.error(f"⚠️ Prediction Error: {e}")
+            except Exception as e:
+                st.error(f"⚠️ Prediction Error: {e}")
+
+    elif forecast_mode == "30-Day Forecast":
+        predictions = recursive_forecast()
+
+        # Create date index starting from selected date
+        future_dates = pd.date_range(start=date, periods=30, freq="D")
+        forecast_df = pd.DataFrame({
+            "Date": future_dates,
+            "Predicted Rainfall (mm)": predictions
+        })
+
+        st.subheader("📆 30-Day Rainfall Forecast")
+        st.line_chart(forecast_df.set_index("Date"))
+
+        # Optional: classify each day
+        quantile_bins = get_rainfall_quantile_bins(df)
+        forecast_df["Category"] = forecast_df["Predicted Rainfall (mm)"].apply(lambda x: CATEGORY_LABELS[categorize_rain(x, quantile_bins)])
+        st.dataframe(forecast_df)
 
 with tab2:
     st.header("📊 Rainfall Dashboard")
