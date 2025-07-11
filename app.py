@@ -65,19 +65,24 @@ def inverse_transform_rainfall(value, scaler, target_index=0):
 # -----------------------------------
 # Streamlit UI
 # -----------------------------------
+df = load_dl_data()
 st.set_page_config(page_title="PH Rainfall Forecast", layout="centered")
-st.title("🌧️ PH Rainfall Forecast & Category Dashboard")
 
+# Sidebar controls (region, forecast date, model, rf type, period)
+st.sidebar.header("📋 Dashboard Controls")
+region = st.sidebar.selectbox("Select Region", sorted(df["Region"].dropna().unique()))
+date = st.sidebar.date_input("Forecast Date", pd.to_datetime("2025-12-01"))
+model_name = st.sidebar.selectbox("Forecasting Model", list(DL_MODEL_PATHS.keys()))
+# Rainfall type (e.g., r1h, r3h, rfq — placeholder now)
+rainfall_feature = st.sidebar.selectbox("Rainfall Feature", ["r1h", "r3h", "rfq"])  # You can expand this later
+forecast_mode = st.sidebar.radio("Forecast Period", ["1-Day Forecast", "30-Day Forecast"])
+
+st.title("🌧️ PH Rainfall Forecast & Category Dashboard")
 st.markdown("""
 Predict future rainfall and automatically classify it into risk categories using deep learning.
 """)
 
-# Input: Region, Date, Model
-df = load_dl_data()
-regions = sorted(df["Region"].dropna().unique())
-region = st.selectbox("Select Region", regions)
-date = st.date_input("Select Prediction Date", pd.to_datetime("2025-12-01"))
-model_name = st.selectbox("Select Forecasting Model", list(DL_MODEL_PATHS.keys()))
+st.markdown(f"**🗺️ Region:** {region}  |  **📅 Date:** {date.strftime('%Y-%m-%d')}  |  **🧠 Model:** {model_name}  |  **🔄 Forecast:** {forecast_mode}")
 
 
 tab1, tab2, = st.tabs(["🔮 Forecast", "📊 Dashboard"])
@@ -112,6 +117,12 @@ with tab1:
             quantile_bins = get_rainfall_quantile_bins(df)
             rain_category = categorize_rain(rainfall_mm, quantile_bins)
             rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
+
+            # Store results in session state
+            st.session_state["rainfall_mm"] = rainfall_mm
+            st.session_state["rain_category"] = rain_category
+            st.session_state["rain_label"] = rain_label
+            st.session_state["note"] = note
 
             # 6. Output — User-Friendly Messaging
             emoji_map = {
@@ -148,9 +159,24 @@ with tab2:
 
     # Dummy METRICS section
     col1, col2, col3 = st.columns(3)
-    col1.metric("Predicted Rainfall", f"{rainfall_mm:.2f} mm", delta=None)
+    # Use session_state or fallback values
+    rainfall_mm = st.session_state.get("rainfall_mm", None)
+    rain_label = st.session_state.get("rain_label", "—")
+    rain_category = st.session_state.get("rain_category", None)
+    note = st.session_state.get("note", "Run a forecast to generate guidance.")
+
+    if rainfall_mm is not None:
+        col1.metric("Predicted Rainfall", f"{rainfall_mm:.2f} mm", delta=None)
+    else:
+        col1.metric("Predicted Rainfall", "—", delta=None)
+
     col2.metric("Category", rain_label, delta=None)
-    col3.metric("Risk Level", guidance.get(rain_category, "Unknown").split('.')[0])
+
+    if rain_category is not None:
+        risk_level = guidance.get(rain_category, "—").split('.')[0]
+        col3.metric("Risk Level", risk_level)
+    else:
+        col3.metric("Risk Level", "—")
 
     st.divider()
 
