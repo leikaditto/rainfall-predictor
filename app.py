@@ -80,6 +80,7 @@ if st.button("Predict"):
         # 1. Prepare model input
         df_region = df[df["Region"] == region]
         X_input, scaler = get_recent_sequence(df_region, region, date)
+        print("Scaler.n_features_in_:", scaler.n_features_in_)
 
         print("🟦 X_input shape:", X_input.shape)
         st.text(f"Input shape to model: {X_input.shape}")
@@ -97,6 +98,8 @@ if st.button("Predict"):
         print("🟩 Model output shape:", output_array.shape)
         st.text(f"Model output shape: {output_array.shape}")
 
+
+        # rainfall_mm = inverse_scale_prediction(np.array([[rainfall_value]]), scaler)
         # # 3. Quantile-based classification
         # quantile_bins = get_rainfall_quantile_bins(df)
         # rain_category = categorize_rain(rainfall_mm, quantile_bins)
