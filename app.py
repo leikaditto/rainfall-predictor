@@ -28,6 +28,22 @@ CATEGORY_LABELS = {
     4: "Extreme Rain"
 }
 
+emoji_map = {
+    0: "☀️",
+    1: "🌤️",
+    2: "🌧️",
+    3: "🌧️🌧️",
+    4: "⛈️⚠️"
+}
+
+guidance = {
+    0: "No rainfall expected. It may be a good time for irrigation or dry-season crop activities.",
+    1: "Light rainfall. Minor field impact — low risk for flooding or crop damage.",
+    2: "Moderate rainfall. Normal wet-season conditions. Proceed with standard precautions.",
+    3: "Heavy rainfall expected. Watch for flooding in low-lying areas. Consider drainage checks.",
+    4: "Extreme rainfall! High risk of flooding. Secure equipment, monitor local alerts, delay planting if needed."
+}
+
 # -----------------------------------
 # Quantile bin logic
 # -----------------------------------
@@ -118,32 +134,15 @@ with tab1:
             rain_category = categorize_rain(rainfall_mm, quantile_bins)
             rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
 
+            # Get icon and guidance
+            icon = emoji_map.get(rain_category, "")
+            note = guidance.get(rain_category, "No guidance available.")
+
             # Store results in session state
             st.session_state["rainfall_mm"] = rainfall_mm
             st.session_state["rain_category"] = rain_category
             st.session_state["rain_label"] = rain_label
             st.session_state["note"] = note
-
-            # 6. Output — User-Friendly Messaging
-            emoji_map = {
-                0: "☀️",
-                1: "🌤️",
-                2: "🌧️",
-                3: "🌧️🌧️",
-                4: "⛈️⚠️"
-            }
-
-            guidance = {
-                0: "No rainfall expected. It may be a good time for irrigation or dry-season crop activities.",
-                1: "Light rainfall. Minor field impact — low risk for flooding or crop damage.",
-                2: "Moderate rainfall. Normal wet-season conditions. Proceed with standard precautions.",
-                3: "Heavy rainfall expected. Watch for flooding in low-lying areas. Consider drainage checks.",
-                4: "Extreme rainfall! High risk of flooding. Secure equipment, monitor local alerts, delay planting if needed."
-            }
-
-            # Get icon and guidance
-            icon = emoji_map.get(rain_category, "")
-            note = guidance.get(rain_category, "No guidance available.")
 
             # Show output
             st.markdown(f"### {icon} Predicted Rainfall: **{rainfall_mm:.2f} mm**")
