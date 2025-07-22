@@ -11,6 +11,7 @@ from utils.preprocessing import (
     recursive_forecast
 )
 from dashboard import show_dashboard
+from utils.shared import categorize_rain, CATEGORY_LABELS, get_rainfall_quantile_bins
 
 # ------------------------------
 # Configuration
@@ -19,14 +20,6 @@ st.set_page_config(page_title="Rainfall Forecast (PH)", layout="wide")
 st.title("🌧️ PH Rainfall Forecast (LSTM Model)")
 
 DL_MODEL_PATH = "models/converted/model_lstm"
-
-CATEGORY_LABELS = {
-    0: "No Rain",
-    1: "Light Rain",
-    2: "Moderate Rain",
-    3: "Heavy Rain",
-    4: "Extreme Rain"
-}
 
 EMOJIS = {
     0: "☀️",
@@ -55,23 +48,6 @@ def load_model():
 @st.cache_data
 def load_dl_data():
     return load_dataset("data/Ph-Rainfall-DL.xlsx")
-
-@st.cache_data
-def get_rainfall_quantile_bins(df):
-    bins = df['r1h'].quantile([0.2, 0.4, 0.6, 0.8]).tolist()
-    return [0] + bins + [np.inf]
-
-def categorize_rain(rain, bins):
-    if rain <= bins[1]:
-        return 0
-    elif rain <= bins[2]:
-        return 1
-    elif rain <= bins[3]:
-        return 2
-    elif rain <= bins[4]:
-        return 3
-    else:
-        return 4
 
 def inverse_transform_rainfall(value, scaler, target_index=0):
     dummy = np.zeros((1, scaler.n_features_in_))

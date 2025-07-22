@@ -5,37 +5,50 @@ import numpy as np
 import altair as alt
 
 from utils.preprocessing import load_dataset
-from app import categorize_rain, CATEGORY_LABELS, get_rainfall_quantile_bins
+from utils.shared import categorize_rain, CATEGORY_LABELS, get_rainfall_quantile_bins
 
 @st.cache_data
 def load_dashboard_data():
     return load_dataset("data/Ph-Rainfall-DL.xlsx")
 
 def show_dashboard():
-    st.subheader("📈 Regional Rainfall Trends & Summary")
+    st.title("📊 Rainfall Forecast Dashboard")
 
+    df = load_dashboard_data()
+    regions = sorted(df["Region"].dropna().unique())
+    region = st.selectbox("Select Region", regions, key="dashboard_region")
+
+    # Filter
     df_region = df[df["Region"] == region].copy()
+    quantile_bins = get_rainfall_quantile_bins(df_region)
+    df_region["Category"] = df_region["r1h"].apply(lambda x: categorize_rain(x, quantile_bins))
+    df_region["Label"] = df_region["Category"].map(CATEGORY_LABELS)
 
-    # Use recent 90 days for visual clarity
-    df_region = df_region.sort_values("date").tail(90)
+    # Visual 1: Line chart (Rainfall over time)
+    st.subheader("📈 Historical Rainfall Trend")
+    df_region["Date"] = pd.to_datetime(df_region["date"], errors='coerce')
+    df_line = df_region.dropna(subset=["Date"])[["Date", "r1h"]].sort_values("Date")
 
-    # Plot 1: Line Chart of r1h (1-month rainfall)
-    st.markdown("**Rainfall Over Time (r1h)**")
-    fig1, ax1 = plt.subplots()
-    ax1.plot(df_region["date"], df_region["r1h"], marker='o', linestyle='-', color='blue')
-    ax1.set_xlabel("Date")
-    ax1.set_ylabel("1-Month Rainfall (mm)")
-    ax1.set_title(f"Rainfall Trend for {region}")
-    plt.xticks(rotation=45)
-    st.pyplot(fig1)
+    line = alt.Chart(df_line).mark_line().encode(
+        x="Date:T",
+        y=alt.Y("r1h:Q", title="Rainfall (mm)"),
+        tooltip=["Date:T", "r1h"]
+    ).properties(width=700, height=300)
+    st.altair_chart(line, use_container_width=True)
 
-    # Plot 2: Rainfall Category Distribution
-    st.markdown("**Rainfall Category Distribution**")
-    bins = get_rainfall_quantile_bins(df)
-    df_region["category"] = df_region["r1h"].apply(lambda x: CATEGORY_LABELS[categorize_rain(x, bins)])
-    counts = df_region["category"].value_counts().reindex(CATEGORY_LABELS.values(), fill_value=0)
-    st.bar_chart(counts)
+    # Visual 2: Bar chart of rainfall category distribution
+    st.subheader("📊 Rainfall Category Frequency")
+    category_counts = df_region["Label"].value_counts().reset_index()
+    category_counts.columns = ["Category", "Count"]
 
-    # Table: Last 10 Days
-    st.markdown("**🔍 Recent 10-Day Summary**")
-    st.dataframe(df_region[["date", "r1h", "category"]].tail(10).reset_index(drop=True))
+    bar = alt.Chart(category_counts).mark_bar().encode(
+        x="Category:N",
+        y="Count:Q",
+        color="Category:N",
+        tooltip=["Category", "Count"]
+    ).properties(width=500)
+    st.altair_chart(bar, use_container_width=True)
+
+    # Table of recent forecasts
+    st.subheader("📋 Recent Observations (10-day)")
+    st.dataframe(df_line.tail(10).rename(columns={"r1h": "Rainfall (mm)"}))
