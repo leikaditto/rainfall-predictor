@@ -6,3 +6,4 @@ tensorflow
 keras
 openpyxl
 joblib
+matplotlib
