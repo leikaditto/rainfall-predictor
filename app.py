@@ -76,8 +76,7 @@ with col_main:
     if not forecast:
         st.subheader("📘 How it Works")
         st.markdown("""
-        This tool forecasts **daily rainfall** for selected Philippine regions using a trained **LSTM deep learning model**.
-
+        This tool forecasts **daily rainfall** for selected Philippine regions using a trained **model**.
         It predicts the **amount of rain** and classifies it into easy-to-understand categories:
 
         | Category | Label          | Emoji       | Description                        |
