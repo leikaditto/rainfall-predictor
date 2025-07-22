@@ -2,24 +2,33 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-import joblib
-import os
-
 from keras.layers import TFSMLayer
-from utils.preprocessing import load_dataset, get_recent_sequence, inverse_transform_rainfall, recursive_forecast
 
-# -----------------------------------
-# Model paths (SavedModel folders)
-# -----------------------------------
-DL_MODEL_PATHS = {
-    "LSTM": "models/converted/model_lstm",
-    "GRU": "models/converted/model_gru",
-    "CNN-LSTM": "models/converted/model_cnnlstm"
-}
+from utils.preprocessing import (
+    load_dataset,
+    get_recent_sequence,
+    inverse_transform_rainfall,
+    recursive_forecast
+)
 
-# -----------------------------------
-# Rain category labels
-# -----------------------------------
+# ------------------------------
+# Configuration
+# ------------------------------
+st.set_page_config(
+    page_title="PH Rainfall Forecast Dashboard",
+    layout="wide"
+)
+
+# ------------------------------
+# Load Model (LSTM Only)
+# ------------------------------
+@st.cache_resource
+def load_lstm_model():
+    return TFSMLayer("models/converted/model_lstm", call_endpoint="serving_default")
+
+# ------------------------------
+# Rainfall Categories
+# ------------------------------
 CATEGORY_LABELS = {
     0: "No Rain",
     1: "Light Rain",
@@ -28,190 +37,100 @@ CATEGORY_LABELS = {
     4: "Extreme Rain"
 }
 
-emoji_map = {
+EMOJIS = {
     0: "☀️",
-    1: "🌤️",
+    1: "🌦️",
     2: "🌧️",
     3: "🌧️🌧️",
     4: "⛈️⚠️"
 }
 
-guidance = {
-    0: "No rainfall expected. It may be a good time for irrigation or dry-season crop activities.",
-    1: "Light rainfall. Minor field impact — low risk for flooding or crop damage.",
-    2: "Moderate rainfall. Normal wet-season conditions. Proceed with standard precautions.",
-    3: "Heavy rainfall expected. Watch for flooding in low-lying areas. Consider drainage checks.",
-    4: "Extreme rainfall! High risk of flooding. Secure equipment, monitor local alerts, delay planting if needed."
+GUIDANCE = {
+    0: "Dry weather. Low impact.",
+    1: "Light rain. Minimal disruption.",
+    2: "Seasonal rain. Normal pattern.",
+    3: "Heavy rain. Stay alert.",
+    4: "Extreme rainfall. Possible flooding!"
 }
 
-# -----------------------------------
-# Quantile bin logic
-# -----------------------------------
+# ------------------------------
+# Rain Category Binning
+# ------------------------------
 @st.cache_data
-def load_dl_data():
+def load_data():
     return load_dataset("data/Ph-Rainfall-DL.xlsx")
 
 @st.cache_data
-def get_rainfall_quantile_bins(df):
-    # Use 'r1h' as the base feature for categorization
-    bins = df['r1h'].quantile([0.2, 0.4, 0.6, 0.8]).tolist()
+def get_rainfall_bins(df):
+    bins = df["r1h"].quantile([0.2, 0.4, 0.6, 0.8]).tolist()
     return [0] + bins + [np.inf]
 
 def categorize_rain(rain, bins):
     if rain <= bins[1]:
-        return 0  # No Rain
+        return 0
     elif rain <= bins[2]:
-        return 1  # Light Rain
+        return 1
     elif rain <= bins[3]:
-        return 2  # Moderate Rain
+        return 2
     elif rain <= bins[4]:
-        return 3  # Heavy Rain
+        return 3
     else:
-        return 4  # Extreme Rain
+        return 4
 
-@st.cache_resource
-def load_dl_model(name):
-    return TFSMLayer(DL_MODEL_PATHS[name], call_endpoint="serving_default")
+# ------------------------------
+# Sidebar
+# ------------------------------
+df = load_data()
+regions = sorted(df["Region"].dropna().unique())
 
-# -----------------------------------
-# Streamlit UI
-# -----------------------------------
-df = load_dl_data()
-st.set_page_config(page_title="PH Rainfall Forecast", layout="centered")
+with st.sidebar:
+    st.header("🌏 Forecast Controls")
+    region = st.selectbox("Select Region", regions)
+    date = st.date_input("Start Forecast Date", pd.to_datetime("2025-12-01"))
+    forecast_type = st.radio("Forecast Type", ["1-Day Forecast", "30-Day Forecast"])
+    predict_btn = st.button("📈 Run Forecast")
 
-# Sidebar controls (region, forecast date, model, rf type, period)
-st.sidebar.header("📋 Dashboard Controls")
-region = st.sidebar.selectbox("Select Region", sorted(df["Region"].dropna().unique()))
-date = st.sidebar.date_input("Forecast Date", pd.to_datetime("2025-12-01"))
-model_name = st.sidebar.selectbox("Forecasting Model", list(DL_MODEL_PATHS.keys()))
-# Rainfall type (e.g., r1h, r3h, rfq — placeholder now)
-rainfall_feature = st.sidebar.selectbox("Rainfall Feature", ["r1h", "r3h", "rfq"])  # You can expand this later
-forecast_mode = st.sidebar.radio("Forecast Period", ["1-Day Forecast", "30-Day Forecast"])
+# ------------------------------
+# Forecasting Logic
+# ------------------------------
+if predict_btn:
+    try:
+        model = load_lstm_model()
+        df_region = df[df["Region"] == region]
+        X_input, scaler = get_recent_sequence(df_region, region, date)
 
-st.title("🌧️ PH Rainfall Forecast & Category Dashboard")
-st.markdown("""
-Predict future rainfall and automatically classify it into risk categories using deep learning.
-""")
+        # One-Day Forecast
+        if forecast_type == "1-Day Forecast":
+            output = model(X_input)
+            predicted = list(output.values())[0] if isinstance(output, dict) else output
+            predicted_value = predicted[0][0]
+            rainfall_mm = inverse_transform_rainfall(predicted_value, scaler)
 
-st.markdown(f"**🗺️ Region:** {region}  |  **📅 Date:** {date.strftime('%Y-%m-%d')}  |  **🧠 Model:** {model_name}  |  **🔄 Forecast:** {forecast_mode}")
+            bins = get_rainfall_bins(df)
+            category = categorize_rain(rainfall_mm, bins)
 
+            st.subheader("📊 Forecast Results")
+            st.metric("📏 Predicted Rainfall", f"{rainfall_mm:.2f} mm")
+            st.metric("🧠 Rainfall Category", f"{EMOJIS[category]} {CATEGORY_LABELS[category]}")
+            st.info(f"📌 {GUIDANCE[category]}")
+            st.caption(f"Thresholds (r1h): {bins}")
 
-tab1, tab2, = st.tabs(["🔮 Forecast", "📊 Dashboard"])
+        # 30-Day Forecast
+        else:
+            forecast_values = recursive_forecast(model, X_input, scaler, steps=30)
+            future_dates = pd.date_range(start=date, periods=30, freq="D")
 
-with tab1:
-    # 1. Prepare model input
-    df_region = df[df["Region"] == region]
-    X_input, scaler = get_recent_sequence(df_region, region, date)
-    model = load_dl_model(model_name)
+            bins = get_rainfall_bins(df)
+            forecast_df = pd.DataFrame({
+                "Date": future_dates,
+                "Rainfall (mm)": forecast_values,
+                "Category": [CATEGORY_LABELS[categorize_rain(x, bins)] for x in forecast_values]
+            })
 
-    if forecast_mode == "1-Day Forecast":
-        # Predict Button
-        if st.button("Predict"):
-            try:
-                st.text(f"Scaler expects: {scaler.n_features_in_} features")
-                st.text(f"Model input shape: {X_input.shape}")
+            st.subheader("📆 30-Day Rainfall Forecast")
+            st.line_chart(forecast_df.set_index("Date")["Rainfall (mm)"])
 
-                # 2. Predict
-                result = model(X_input)
+            st.dataframe(forecast_df)
 
-                # 3. Extract predicted value
-                if isinstance(result, dict):
-                    output_array = list(result.values())[0]
-                else:
-                    output_array = result
-
-                predicted_value = output_array[0][0]  # shape (1, 1)
-
-                # 4. Inverse transform using dummy 8-feature row
-                rainfall_mm = inverse_transform_rainfall(predicted_value, scaler)
-
-                # 5. Classify
-                quantile_bins = get_rainfall_quantile_bins(df)
-                rain_category = categorize_rain(rainfall_mm, quantile_bins)
-                rain_label = CATEGORY_LABELS.get(rain_category, "Unknown")
-
-                # Get icon and guidance
-                icon = emoji_map.get(rain_category, "")
-                note = guidance.get(rain_category, "No guidance available.")
-
-                # Store results in session state
-                st.session_state["rainfall_mm"] = rainfall_mm
-                st.session_state["rain_category"] = rain_category
-                st.session_state["rain_label"] = rain_label
-                st.session_state["note"] = note
-
-                # Show output
-                st.markdown(f"### {icon} Predicted Rainfall: **{rainfall_mm:.2f} mm**")
-                st.markdown(f"**Category:** {rain_label} ({rain_category}) — Based on historical patterns")
-                st.markdown(f"#### 📌 Guidance:\n{note}")
-                st.caption(f"Quantile Thresholds (from training data): {quantile_bins}")
-
-            except Exception as e:
-                st.error(f"⚠️ Prediction Error: {e}")
-
-    elif forecast_mode == "30-Day Forecast":
-        predictions = recursive_forecast(model, X_input, scaler, steps=30)
-
-        # Create date index starting from selected date
-        future_dates = pd.date_range(start=date, periods=30, freq="D")
-        forecast_df = pd.DataFrame({
-            "Date": future_dates,
-            "Predicted Rainfall (mm)": predictions
-        })
-
-        st.subheader("📆 30-Day Rainfall Forecast")
-        st.line_chart(forecast_df.set_index("Date"))
-
-        # Optional: classify each day
-        quantile_bins = get_rainfall_quantile_bins(df)
-        forecast_df["Category"] = forecast_df["Predicted Rainfall (mm)"].apply(lambda x: CATEGORY_LABELS[categorize_rain(x, quantile_bins)])
-        st.dataframe(forecast_df)
-
-with tab2:
-    st.header("📊 Rainfall Dashboard")
-
-    # Dummy METRICS section
-    col1, col2, col3 = st.columns(3)
-    # Use session_state or fallback values
-    rainfall_mm = st.session_state.get("rainfall_mm", None)
-    rain_label = st.session_state.get("rain_label", "—")
-    rain_category = st.session_state.get("rain_category", None)
-    note = st.session_state.get("note", "Run a forecast to generate guidance.")
-
-    if rainfall_mm is not None:
-        col1.metric("Predicted Rainfall", f"{rainfall_mm:.2f} mm", delta=None)
-    else:
-        col1.metric("Predicted Rainfall", "—", delta=None)
-
-    col2.metric("Category", rain_label, delta=None)
-
-    if rain_category is not None:
-        risk_level = guidance.get(rain_category, "—").split('.')[0]
-        col3.metric("Risk Level", risk_level)
-    else:
-        col3.metric("Risk Level", "—")
-
-    st.divider()
-
-    # LINE CHART (Recent Rainfall Trend)
-    df_region_all = df[df["Region"] == region].sort_values("date").tail(100)
-    st.subheader("📈 Recent Rainfall (r1h)")
-    st.line_chart(data=df_region_all, x="date", y="r1h", use_container_width=True)
-
-    st.divider()
-
-    # DONUT CHART (Category Frequency)
-    bins = get_rainfall_quantile_bins(df_region_all)
-    df_region_all["rain_cat"] = df_region_all["r1h"].apply(lambda x: categorize_rain(x, bins))
-    counts = df_region_all["rain_cat"].value_counts().sort_index()
-    labels = [CATEGORY_LABELS[i] for i in counts.index]
-    donut_data = pd.DataFrame({"Category": labels, "Frequency": counts.values})
-
-    st.subheader("🍩 Rainfall Category Distribution")
-    st.bar_chart(donut_data.set_index("Category"))
-
-    st.divider()
-
-    # Placeholder for future heatmap
-    st.subheader("🟦 Heatmap (Coming Soon)")
-    st.info("A visual heatmap of rainfall by week and day will appear here in the next version.")
+    except Exception as e:
+        st.error(f"⚠️ Prediction Error: {e}")
