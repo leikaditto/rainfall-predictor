@@ -17,7 +17,7 @@ from utils.shared import categorize_rain, CATEGORY_LABELS, get_rainfall_quantile
 # Configuration
 # ------------------------------
 st.set_page_config(page_title="Rainfall Forecast (PH)", layout="wide")
-st.title("🌧️ PH Rainfall Forecast (LSTM Model)")
+st.title("🌧️ PH Rainfall Forecast")
 
 DL_MODEL_PATH = "models/converted/model_lstm"
 

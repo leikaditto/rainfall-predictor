@@ -11,14 +11,14 @@ from utils.shared import categorize_rain, CATEGORY_LABELS, get_rainfall_quantile
 def load_dashboard_data():
     return load_dataset("data/Ph-Rainfall-DL.xlsx")
 
-def show_dashboard():
+def show_dashboard(start_date="2025-12-01"):
     st.title("📊 Rainfall Forecast Dashboard")
 
     df = load_dashboard_data()
     quantile_bins = get_rainfall_quantile_bins(df)
 
-    # Simulate 30-day prediction for visualization
-    dates = pd.date_range(start="2025-12-01", periods=30, freq="D")
+    # 30-day prediction
+    dates = pd.date_range(start=start_date, periods=30, freq="D")
     rainfall = np.random.normal(loc=5, scale=1.2, size=30)
     rainfall = np.clip(rainfall, 0, None)  # no negative rain
     categories = [categorize_rain(val, quantile_bins) for val in rainfall]
