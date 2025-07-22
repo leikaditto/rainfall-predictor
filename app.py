@@ -105,8 +105,8 @@ with col_main:
 
         | Category | Label          | Emoji       | Description                        |
         |----------|----------------|-------------|------------------------------------|
-        | 0        | No Rain        | ☀️           | Dry weather                        |
-        | 1        | Light Rain     | 🌤️           | Light drizzle                      |
+        | 0        | No Rain        | ☀️           | Dry weather (Light drizzle)       |
+        | 1        | Light Rain     | 🌤️           | Light Rain                      |
         | 2        | Moderate Rain  | 🌧️           | Typical wet-season rainfall        |
         | 3        | Heavy Rain     | 🌧️🌧️         | May cause flooding in some areas  |
         | 4        | Extreme Rain   | ⛈️⚠️          | Dangerous rainfall, stay alert!   |
