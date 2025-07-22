@@ -10,6 +10,7 @@ from utils.preprocessing import (
     inverse_transform_rainfall,
     recursive_forecast
 )
+from dashboard import show_dashboard
 
 # ------------------------------
 # Configuration
@@ -137,6 +138,9 @@ with col_main:
             st.markdown(f"### 🧠 Rainfall Category\n{emoji} **{rain_label}**")
             st.info(f"📌 {explain}")
             st.caption(f"Thresholds (r1h): {quantile_bins}")
+
+            # Dashboard Visuals
+            show_dashboard(region, df)
 
         except Exception as e:
             st.error(f"⚠️ Prediction Error: {e}")
