@@ -114,7 +114,6 @@ with col_main:
             st.markdown(f"### ✏️ Predicted Rainfall\n**{rainfall_mm:.2f} mm**")
             st.markdown(f"### 🧠 Rainfall Category\n{emoji} **{rain_label}**")
             st.info(f"📌 {explain}")
-            st.caption(f"Thresholds (r1h): {quantile_bins}")
 
             # Dashboard Visuals
             show_dashboard(start_date=str(date))
