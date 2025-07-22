@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt
+import matplotlib.pyplot as plt
 
 from utils.preprocessing import load_dataset
 from utils.shared import categorize_rain, CATEGORY_LABELS, get_rainfall_quantile_bins
@@ -15,40 +15,41 @@ def show_dashboard():
     st.title("📊 Rainfall Forecast Dashboard")
 
     df = load_dashboard_data()
-    regions = sorted(df["Region"].dropna().unique())
-    region = st.selectbox("Select Region", regions, key="dashboard_region")
+    quantile_bins = get_rainfall_quantile_bins(df)
 
-    # Filter
-    df_region = df[df["Region"] == region].copy()
-    quantile_bins = get_rainfall_quantile_bins(df_region)
-    df_region["Category"] = df_region["r1h"].apply(lambda x: categorize_rain(x, quantile_bins))
-    df_region["Label"] = df_region["Category"].map(CATEGORY_LABELS)
+    # Simulate 30-day prediction for visualization
+    dates = pd.date_range(start="2025-12-01", periods=30, freq="D")
+    rainfall = np.random.normal(loc=5, scale=1.2, size=30)
+    rainfall = np.clip(rainfall, 0, None)  # no negative rain
+    categories = [categorize_rain(val, quantile_bins) for val in rainfall]
+    labels = [CATEGORY_LABELS[cat] for cat in categories]
 
-    # Visual 1: Line chart (Rainfall over time)
-    st.subheader("📈 Historical Rainfall Trend")
-    df_region["Date"] = pd.to_datetime(df_region["date"], errors='coerce')
-    df_line = df_region.dropna(subset=["Date"])[["Date", "r1h"]].sort_values("Date")
+    forecast_df = pd.DataFrame({
+        "Date": dates,
+        "Rainfall (mm)": rainfall,
+        "Category": labels
+    })
 
-    line = alt.Chart(df_line).mark_line().encode(
-        x="Date:T",
-        y=alt.Y("r1h:Q", title="Rainfall (mm)"),
-        tooltip=["Date:T", "r1h"]
-    ).properties(width=700, height=300)
-    st.altair_chart(line, use_container_width=True)
+    # Chart 1: Line + Dot forecast
+    st.subheader("📅 30-Day Rainfall Forecast")
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(forecast_df["Date"], forecast_df["Rainfall (mm)"], color="orange", marker="o")
+    ax.set_title("📉 30-Day Rainfall Forecast")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Rainfall (mm)")
+    ax.tick_params(axis='x', rotation=45)
+    st.pyplot(fig)
 
-    # Visual 2: Bar chart of rainfall category distribution
+    # Chart 2: Rainfall Category Frequency
     st.subheader("📊 Rainfall Category Frequency")
-    category_counts = df_region["Label"].value_counts().reset_index()
-    category_counts.columns = ["Category", "Count"]
+    cat_freq = forecast_df["Category"].value_counts().reindex(CATEGORY_LABELS.values(), fill_value=0)
+    fig2, ax2 = plt.subplots(figsize=(8, 4))
+    ax2.bar(cat_freq.index, cat_freq.values, color="skyblue")
+    ax2.set_ylabel("Days")
+    ax2.set_xlabel("Rainfall Category")
+    ax2.set_title("📊 Rainfall Category Frequency")
+    ax2.tick_params(axis='x', rotation=45)
+    st.pyplot(fig2)
 
-    bar = alt.Chart(category_counts).mark_bar().encode(
-        x="Category:N",
-        y="Count:Q",
-        color="Category:N",
-        tooltip=["Category", "Count"]
-    ).properties(width=500)
-    st.altair_chart(bar, use_container_width=True)
-
-    # Table of recent forecasts
-    st.subheader("📋 Recent Observations (10-day)")
-    st.dataframe(df_line.tail(10).rename(columns={"r1h": "Rainfall (mm)"}))
+    # Optional Table View
+    st.dataframe(forecast_df)

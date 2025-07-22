@@ -89,6 +89,7 @@ with col_main:
         | 4        | Extreme Rain   | ⛈️⚠️          | Dangerous rainfall, stay alert!   |
         """)
         st.info("Please select a region and date on the left to begin the forecast.")
+        
     else:
         try:
             df_region = df[df["Region"] == region]
