@@ -140,7 +140,7 @@ with col_main:
             st.caption(f"Thresholds (r1h): {quantile_bins}")
 
             # Dashboard Visuals
-            show_dashboard(region, df)
+            show_dashboard()
 
         except Exception as e:
             st.error(f"⚠️ Prediction Error: {e}")
